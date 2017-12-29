@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
 using NUnit.Framework;
 using RestSharp;
+using RestSharp.Authenticators;
 using RestSharp.Extensions;
 
 namespace Zialinski_task_API_testing
@@ -118,6 +119,7 @@ namespace Zialinski_task_API_testing
         public void ErrorAPICheck()
         {
             var client = new RestClient("https://jsonplaceholder.typicode.com");
+
             var request = new RestRequest("posts", Method.POST);
 
             dynamic obj = new ExpandoObject();
