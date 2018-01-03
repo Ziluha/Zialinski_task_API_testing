@@ -60,6 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="APITest.cs" />
+    <Compile Include="OAuth2Helper.cs" />
     <Compile Include="OAuthAPITest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
