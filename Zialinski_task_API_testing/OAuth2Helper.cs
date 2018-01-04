@@ -16,7 +16,7 @@ namespace Zialinski_task_API_testing
             return elem;
         }
 
-        private static string GetSpecificValueFromCookies(IRestResponse response, string specificName)
+        public static string GetSpecificValueFromCookies(IRestResponse response, string specificName)
         {
             try
             {
@@ -26,6 +26,13 @@ namespace Zialinski_task_API_testing
             {
                 throw new Exception("No such element "+specificName+" in collection");
             }
+        }
+
+        private static string GetAccessTokenFromContent(string content)
+        {
+            JObject result = JObject.Parse(content);
+            string accessToken = result["access_token"].ToString();
+            return accessToken;
         }
 
         private static string Base64Encode(string plainText)
@@ -68,8 +75,25 @@ namespace Zialinski_task_API_testing
             reqForToken.AddParameter("application/x-www-form-urlencoded", "grant_type=client_credentials", ParameterType.RequestBody);
             IRestResponse resWithToken = client.Execute(reqForToken);
 
-            JObject result = JObject.Parse(resWithToken.Content);
-            string accessToken = result["access_token"].ToString();
+            string accessToken = GetAccessTokenFromContent(resWithToken.Content);
+            Assert.True(!string.IsNullOrEmpty(accessToken), "Token was not presented");
+            return accessToken;
+        }
+
+        public static string GetBitlyTokenResourceOwnerPassword(string clientId, string clientSecret, string username, string password)
+        {
+            string credentialsForEncode = clientId + ":" + clientSecret;
+            RestClient client = new RestClient("https://api-ssl.bitly.com/oauth/access_token");
+            IRestRequest reqForToken = new RestRequest(Method.POST);
+            reqForToken.AddHeader("Authorization",
+                "Basic " + Base64Encode(credentialsForEncode));
+            reqForToken.AddHeader("content-type", "application/x-www-form-urlencoded");
+            reqForToken.AddParameter("application/x-www-form-urlencoded", 
+                $"grant_type=password&username={username}&password={password}", 
+                ParameterType.RequestBody);
+            IRestResponse resWithToken = client.Execute(reqForToken);
+
+            string accessToken = GetAccessTokenFromContent(resWithToken.Content);
             Assert.True(!string.IsNullOrEmpty(accessToken), "Token was not presented");
             return accessToken;
         }

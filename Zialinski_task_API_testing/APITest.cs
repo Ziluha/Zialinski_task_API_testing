@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Dynamic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Dynamic;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
 using NUnit.Framework;
 using RestSharp;
-using RestSharp.Authenticators;
-using RestSharp.Extensions;
 
 namespace Zialinski_task_API_testing
 {
