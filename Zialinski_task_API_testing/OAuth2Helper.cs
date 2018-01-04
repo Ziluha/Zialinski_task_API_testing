@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using NUnit.Framework;
 using RestSharp;
 
 namespace Zialinski_task_API_testing
@@ -16,71 +18,62 @@ namespace Zialinski_task_API_testing
             return elem;
         }
 
-        public static string GetSpecificValueFromCookies(IRestResponse response, string specificName)
+        private static string GetSpecificValueFromCookies(IRestResponse response, string specificName)
         {
-            return response.Cookies.First(item => item.Name == specificName).Value;
+            try
+            {
+                return response.Cookies.First(item => item.Name == specificName).Value;
+            }
+            catch (Exception)
+            {
+                throw new Exception("No such element "+specificName+" in collection");
+            }
         }
 
-        public static string GetToken(string url, string username, string password, string specialCookie, string specialParam)
+        private static string Base64Encode(string plainText)
         {
-            var client = new RestClient(url);
-            var getRequest = new RestRequest(Method.GET);
-            getRequest.AddQueryParameter("response_type", "token");
+            var plainTextBytes = Encoding.UTF8.GetBytes(plainText);
+            return Convert.ToBase64String(plainTextBytes);
+        }
 
-            IRestResponse getResponse = client.Execute(getRequest);
+        public static string GetImgurTokenImplicit(string clientId, string username, string password)
+        {
+            RestClient client = new RestClient($"https://api.imgur.com/oauth2/authorize?response_type=token&client_id={clientId}");
+            RestRequest reqForSpecValue = new RestRequest(Method.GET);
 
-            string specialParamValue = GetSpecificValueFromCookies(getResponse, specialCookie);
+            IRestResponse resWithSpecValue = client.Execute(reqForSpecValue);
 
-            var postRequest = new RestRequest(Method.POST);
-            postRequest.AddQueryParameter("response_type", "token");
-            postRequest.AddCookie(specialCookie, specialParamValue);
-            postRequest.AddHeader("cache-control", "no-cache");
-            postRequest.AddHeader("content-type", "application/x-www-form-urlencoded");
-            postRequest.AddParameter("application/x-www-form-urlencoded",
-                $"username={username}&password={password}&{specialParam}={specialParamValue}",
+            string specificValueName = "authorize_token";
+            string specialParamValue = GetSpecificValueFromCookies(resWithSpecValue, specificValueName);
+
+            RestRequest reqForToken = new RestRequest(Method.POST);
+            reqForToken.AddCookie(specificValueName, specialParamValue);
+            reqForToken.AddHeader("content-type", "application/x-www-form-urlencoded");
+            reqForToken.AddParameter("application/x-www-form-urlencoded",
+                $"username={username}&password={password}&allow={specialParamValue}",
                 ParameterType.RequestBody);
 
-            IRestResponse response = client.Execute(postRequest);
-            
-            string token = GetUriElement(response.ResponseUri.Fragment, "access_token");
+            IRestResponse resWithToken = client.Execute(reqForToken);
 
+            string token = GetUriElement(resWithToken.ResponseUri.Fragment, "access_token");
+            Assert.True(!string.IsNullOrEmpty(token), "Token was not presented");
             return token;
         }
 
-        public static string GetTokenThrowCode(string url, string tokenPath, string username, string password, string specialCookie, string specialParam)
+        public static string GetSpotifyTokenClientCredentials(string clientId, string clientSecret)
         {
-            var client = new RestClient(url);
-            var getRequest = new RestRequest(Method.GET);
-            getRequest.AddQueryParameter("response_type", "code");
+            string credentialsForEncode = clientId + ":" + clientSecret;
+            RestClient client = new RestClient("https://accounts.spotify.com/api/token");
+            RestRequest reqForToken = new RestRequest(Method.POST);
+            reqForToken.AddHeader("authorization", "Basic "+Base64Encode(credentialsForEncode));
+            reqForToken.AddHeader("content-type", "application/x-www-form-urlencoded");
+            reqForToken.AddParameter("application/x-www-form-urlencoded", "grant_type=client_credentials", ParameterType.RequestBody);
+            IRestResponse resWithToken = client.Execute(reqForToken);
 
-            IRestResponse getResponse = client.Execute(getRequest);
-
-            string specialParamValue = getResponse.Cookies[0].Value;
-
-            var postRequest = new RestRequest(Method.POST);
-            postRequest.AddQueryParameter("response_type", "code");
-            postRequest.AddCookie(specialCookie, specialParamValue);
-            postRequest.AddHeader("cache-control", "no-cache");
-            postRequest.AddHeader("content-type", "application/x-www-form-urlencoded");
-            postRequest.AddParameter("application/x-www-form-urlencoded",
-                $"username={username}&password={password}&{specialParam}={specialParamValue}",
-                ParameterType.RequestBody);
-
-            IRestResponse postResponse = client.Execute(postRequest);
-
-            string code = GetUriElement(postResponse.ResponseUri.Query, "code");
-
-            string tokenUri = postResponse.ResponseUri.AbsoluteUri.Replace(postResponse.ResponseUri.Query, tokenPath);
-
-            var clientForToken = new RestClient(tokenUri);
-            var postForToken = new RestRequest(Method.POST);
-            postForToken.AddQueryParameter("code", code);
-
-            IRestResponse postResponseForToken = clientForToken.Execute(postForToken);
-
-            // here request to /oauth2/token
-
-            return code;
+            JObject result = JObject.Parse(resWithToken.Content);
+            string accessToken = result["access_token"].ToString();
+            Assert.True(!string.IsNullOrEmpty(accessToken), "Token was not presented");
+            return accessToken;
         }
     }
 }
