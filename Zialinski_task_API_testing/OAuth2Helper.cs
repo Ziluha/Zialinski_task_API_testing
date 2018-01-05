@@ -9,7 +9,7 @@ namespace Zialinski_task_API_testing
 {
     class OAuth2Helper
     {
-        private static string GetUriElement(string uriOrUriPart, string elemName)
+        public static string GetUriElement(string uriOrUriPart, string elemName)
         {
             string[] elemsFromUriOrUriPart = uriOrUriPart.Split('&', '=', '#', '?');
             string elem = elemsFromUriOrUriPart[Array.IndexOf(elemsFromUriOrUriPart, elemName) + 1];
@@ -28,7 +28,7 @@ namespace Zialinski_task_API_testing
             }
         }
 
-        private static string GetAccessTokenFromContent(string content)
+        private static string GetAccessTokenFromJSONContent(string content)
         {
             JObject result = JObject.Parse(content);
             string accessToken = result["access_token"].ToString();
@@ -41,9 +41,9 @@ namespace Zialinski_task_API_testing
             return Convert.ToBase64String(plainTextBytes);
         }
 
-        public static string GetImgurTokenImplicit(string clientId, string username, string password)
+        private static IRestResponse ImgurAuth(string responseType, string clientId, string username, string password)
         {
-            RestClient client = new RestClient($"https://api.imgur.com/oauth2/authorize?response_type=token&client_id={clientId}");
+            RestClient client = new RestClient($"https://api.imgur.com/oauth2/authorize?response_type={responseType}&client_id={clientId}");
             RestRequest reqForSpecValue = new RestRequest(Method.GET);
 
             IRestResponse resWithSpecValue = client.Execute(reqForSpecValue);
@@ -51,21 +51,48 @@ namespace Zialinski_task_API_testing
             string specificValueName = "authorize_token";
             string specialParamValue = GetSpecificValueFromCookies(resWithSpecValue, specificValueName);
 
-            RestRequest reqForToken = new RestRequest(Method.POST);
-            reqForToken.AddCookie(specificValueName, specialParamValue);
-            reqForToken.AddHeader("content-type", "application/x-www-form-urlencoded");
-            reqForToken.AddParameter("application/x-www-form-urlencoded",
+            RestRequest request = new RestRequest(Method.POST);
+            request.AddCookie(specificValueName, specialParamValue);
+            request.AddHeader("content-type", "application/x-www-form-urlencoded");
+            request.AddParameter("application/x-www-form-urlencoded",
                 $"username={username}&password={password}&allow={specialParamValue}",
                 ParameterType.RequestBody);
 
-            IRestResponse resWithToken = client.Execute(reqForToken);
+            IRestResponse response = client.Execute(request);
+
+            return response;
+        }
+
+        public static string GetImgurTokenImplicit(string clientId, string username, string password)
+        {
+            IRestResponse resWithToken = ImgurAuth("token", clientId, username, password); 
 
             string token = GetUriElement(resWithToken.ResponseUri.Fragment, "access_token");
             Assert.True(!string.IsNullOrEmpty(token), "Token was not presented");
             return token;
         }
 
-        public static string GetSpotifyTokenClientCredentials(string clientId, string clientSecret)
+        public static string GetImgurTokenThrowCode(string clientId, string clientSecret, string username, string password)
+        {
+            IRestResponse resWithCode = ImgurAuth("code", clientId, username, password);
+            string code = GetUriElement(resWithCode.ResponseUri.Query, "code");
+            Assert.True(!string.IsNullOrEmpty(code), "Token was not presented");
+
+            RestClient client = new RestClient("https://api.imgur.com");
+            RestRequest reqForToken = new RestRequest("oauth2/token", Method.POST);
+            reqForToken.AddHeader("content-type", "application/x-www-form-urlencoded");
+            reqForToken.AddParameter("application/x-www-form-urlencoded",
+                $"client_id={clientId}&client_secret={clientSecret}&grant_type=authorization_code&code={code}",
+                ParameterType.RequestBody);
+
+            IRestResponse resWithToken = client.Execute(reqForToken);
+
+            string accessToken = GetAccessTokenFromJSONContent(resWithToken.Content);
+            Assert.True(!string.IsNullOrEmpty(accessToken), "Token was not presented");
+            return accessToken;
+        }
+
+        public static string GetSpotifyTokenThrowClientCredentials(string clientId, string clientSecret)
         {
             string credentialsForEncode = clientId + ":" + clientSecret;
             RestClient client = new RestClient("https://accounts.spotify.com/api/token");
@@ -75,12 +102,12 @@ namespace Zialinski_task_API_testing
             reqForToken.AddParameter("application/x-www-form-urlencoded", "grant_type=client_credentials", ParameterType.RequestBody);
             IRestResponse resWithToken = client.Execute(reqForToken);
 
-            string accessToken = GetAccessTokenFromContent(resWithToken.Content);
+            string accessToken = GetAccessTokenFromJSONContent(resWithToken.Content);
             Assert.True(!string.IsNullOrEmpty(accessToken), "Token was not presented");
             return accessToken;
         }
 
-        public static string GetBitlyTokenResourceOwnerPassword(string clientId, string clientSecret, string username, string password)
+        public static string GetBitlyTokenThrowResourceOwnerPassword(string clientId, string clientSecret, string username, string password)
         {
             string credentialsForEncode = clientId + ":" + clientSecret;
             RestClient client = new RestClient("https://api-ssl.bitly.com/oauth/access_token");
@@ -93,7 +120,7 @@ namespace Zialinski_task_API_testing
                 ParameterType.RequestBody);
             IRestResponse resWithToken = client.Execute(reqForToken);
 
-            string accessToken = GetAccessTokenFromContent(resWithToken.Content);
+            string accessToken = GetAccessTokenFromJSONContent(resWithToken.Content);
             Assert.True(!string.IsNullOrEmpty(accessToken), "Token was not presented");
             return accessToken;
         }
