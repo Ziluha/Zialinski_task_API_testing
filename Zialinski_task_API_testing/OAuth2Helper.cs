@@ -124,5 +124,42 @@ namespace Zialinski_task_API_testing
             Assert.True(!string.IsNullOrEmpty(accessToken), "Token was not presented");
             return accessToken;
         }
+
+        public static string GetFormStackTokenThrowAuthCode(string clientId, string email, string password)
+        {
+            RestClient client =
+                new RestClient(
+                    "https://www.formstack.com/api/v2/oauth2")
+                {
+                    CookieContainer = new System.Net.CookieContainer()
+                };
+
+            var request = new RestRequest("authorize?client_id=15099&redirect_uri=https://www.getpostman.com/oauth2/callback&response_type=code", Method.POST);
+            request.AddHeader("content-type", "application/x-www-form-urlencoded");
+            request.AddParameter("application/x-www-form-urlencoded", 
+                $"client_id={clientId}&response_type=code&redirect_uri=https%3A%2F%2Fwww.getpostman.com%2Foauth2%2Fcallback&required=email%2Cpassword&action=login&email={email}&password={password}&login=Log%20In%20to%20Formstack", 
+                ParameterType.RequestBody);
+            client.Execute(request);
+
+            var requestForCode = new RestRequest("authorize?client_id=15099&redirect_uri=https://www.getpostman.com/oauth2/callback&response_type=code", Method.POST);
+            requestForCode.AddHeader("content-type", "application/x-www-form-urlencoded");
+            requestForCode.AddParameter("application/x-www-form-urlencoded", 
+                $"client_id={clientId}&response_type=code&redirect_uri=https%3A%2F%2Fwww.getpostman.com%2Foauth2%2Fcallback&required=email%2Cpassword&grant=Authorize", 
+                ParameterType.RequestBody);
+            IRestResponse responseWithCode = client.Execute(requestForCode);
+            
+            string code = GetUriElement(responseWithCode.ResponseUri.Query, "code");
+
+            var requestForToken = new RestRequest("token", Method.POST);
+            requestForToken.AddHeader("content-type", "application/x-www-form-urlencoded");
+            requestForToken.AddParameter("application/x-www-form-urlencoded", 
+                $"grant_type=authorization_code&client_id={clientId}&redirect_uri=https%3A%2F%2Fwww.getpostman.com%2Foauth2%2Fcallback&client_secret=0a4cc5f11b&code={code}", 
+                ParameterType.RequestBody);
+            IRestResponse responseWithToken = client.Execute(requestForToken);
+
+            string accessToken = GetAccessTokenFromJSONContent(responseWithToken.Content);
+            Assert.True(!string.IsNullOrEmpty(accessToken), "Token was not presented");
+            return accessToken;
+        }
     }
 }
