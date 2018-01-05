@@ -9,14 +9,14 @@ namespace Zialinski_task_API_testing
 {
     class OAuth2Helper
     {
-        public static string GetUriElement(string uriOrUriPart, string elemName)
+        private static string GetUriElement(string uriOrUriPart, string elemName)
         {
             string[] elemsFromUriOrUriPart = uriOrUriPart.Split('&', '=', '#', '?');
             string elem = elemsFromUriOrUriPart[Array.IndexOf(elemsFromUriOrUriPart, elemName) + 1];
             return elem;
         }
 
-        public static string GetSpecificValueFromCookies(IRestResponse response, string specificName)
+        private static string GetSpecificValueFromCookies(IRestResponse response, string specificName)
         {
             try
             {
